@@ -28,7 +28,7 @@ DeployNotes is a Progressive Web App (PWA) designed for humanitarian field worke
 ## 🚀 Quick Start
 
 ### Use Hosted Version
-Visit: **[https://yourusername.github.io/deploynotes](https://yourusername.github.io/deploynotes)**
+Visit: **[https://reggie-maxxam.github.io/deploynotes](https://reggie-maxxam.github.io/deploynotes)**
 
 ### Install on Your Phone
 
@@ -82,7 +82,7 @@ Visit: **[https://yourusername.github.io/deploynotes](https://yourusername.githu
 1. Fork this repository
 2. Go to Settings → Pages
 3. Select "Deploy from branch" → main
-4. Your app is live at `https://yourusername.github.io/deploynotes`
+4. Your app is live at `https://reggie-maxxam.github.io/deploynotes`
 
 ### Other Hosting
 Simply upload `index.html` to any web server. No build process required.
