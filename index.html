@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="DeployNotes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0a1628">
+    <title>DeployNotes - Field Reporting</title>
+    <style>
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a1628;min-height:100vh;color:#fff}
+        
+        /* PIN Lock Screen */
+        .lock-screen{position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,#0a1628 0%,#0d2137 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;padding:20px}
+        .lock-screen.hidden{display:none}
+        .lock-icon{font-size:4rem;margin-bottom:20px}
+        .lock-title{font-size:1.5rem;color:#64b5f6;margin-bottom:10px}
+        .lock-subtitle{color:#5c7a99;font-size:0.9rem;margin-bottom:30px;text-align:center}
+        .pin-display{display:flex;gap:15px;margin-bottom:30px}
+        .pin-dot{width:20px;height:20px;border-radius:50%;border:2px solid #64b5f6;background:transparent;transition:all 0.2s}
+        .pin-dot.filled{background:#64b5f6}
+        .pin-dot.error{border-color:#ef5350;background:#ef5350}
+        .pin-pad{display:grid;grid-template-columns:repeat(3,80px);gap:15px}
+        .pin-btn{width:80px;height:80px;border-radius:50%;border:2px solid #1e3a5f;background:rgba(100,181,246,0.05);color:#fff;font-size:1.8rem;font-weight:300;cursor:pointer;transition:all 0.2s}
+        .pin-btn:active{background:#64b5f6;color:#0a1628}
+        .pin-btn.action{font-size:1rem;border-color:#64b5f6}
+        .pin-error{color:#ef5350;margin-top:20px;font-size:0.9rem;height:20px}
+        .setup-mode .lock-subtitle{color:#64b5f6}
+        
+        /* Main App */
+        .app-container{padding:15px;padding-top:env(safe-area-inset-top,15px);padding-bottom:100px;display:none}
+        .app-container.visible{display:block}
+        
+        .header{text-align:center;padding:15px 10px;margin-bottom:15px}
+        .header h1{font-size:1.4rem;color:#64b5f6;margin-bottom:3px}
+        .header p{color:#5c7a99;font-size:0.8rem}
+        .header .deployment-name{color:#90caf9;font-weight:600}
+        
+        .status-bar{display:flex;justify-content:space-between;align-items:center;background:rgba(100,181,246,0.08);padding:10px 15px;border-radius:10px;margin-bottom:15px;font-size:0.75rem;flex-wrap:wrap;gap:5px;border:1px solid rgba(100,181,246,0.15)}
+        .status-item{display:flex;align-items:center;gap:5px;color:#90caf9}
+        .status-dot{width:8px;height:8px;border-radius:50%}
+        .status-dot.online{background:#4caf50}
+        .status-dot.offline{background:#ff9800}
+        .status-dot.synced{background:#4caf50}
+        .status-dot.pending{background:#ff9800}
+        
+        .location-info{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px}
+        .location-info input,.location-info select{background:rgba(100,181,246,0.08);border:1px solid rgba(100,181,246,0.2);border-radius:10px;padding:12px;color:#fff;font-size:0.95rem;width:100%}
+        .location-info input:focus,.location-info select:focus{outline:none;border-color:#64b5f6;box-shadow:0 0 0 3px rgba(100,181,246,0.15)}
+        .location-info .full{grid-column:1/-1}
+        .location-info label{display:block;color:#5c7a99;font-size:0.75rem;margin-bottom:4px}
+        .location-group{display:flex;flex-direction:column}
+        
+        .card{background:rgba(100,181,246,0.05);border-radius:15px;padding:15px;margin-bottom:12px;border-left:4px solid #64b5f6;border:1px solid rgba(100,181,246,0.1);border-left:4px solid #64b5f6}
+        .card.journey{border-left-color:#42a5f5}
+        .card.people{border-left-color:#5c6bc0}
+        .card.impact{border-left-color:#26a69a}
+        .card.story{border-left-color:#7986cb}
+        .card.media{border-left-color:#29b6f6}
+        .card.reflection{border-left-color:#4dd0e1}
+        
+        .card-header{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+        .card-header .emoji{font-size:1.3rem}
+        .card-header h2{font-size:1rem;font-weight:600;color:#e3f2fd}
+        .card-header small{display:block;color:#5c7a99;font-size:0.7rem;margin-top:2px}
+        
+        textarea,select{width:100%;background:rgba(13,33,55,0.8);border:1px solid rgba(100,181,246,0.2);border-radius:10px;padding:12px;color:#fff;font-size:0.95rem;font-family:inherit;resize:vertical;min-height:80px}
+        select{min-height:auto}
+        textarea:focus,select:focus{outline:none;border-color:#64b5f6;box-shadow:0 0 0 3px rgba(100,181,246,0.15)}
+        select option{background:#0d2137;color:#fff}
+        
+        .prompt{color:#5c7a99;font-size:0.8rem;margin-bottom:8px;font-style:italic}
+        
+        .quick-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+        .stat-box{background:rgba(13,33,55,0.8);border-radius:8px;padding:10px;text-align:center;border:1px solid rgba(100,181,246,0.15)}
+        .stat-box input{background:none;border:none;color:#64b5f6;font-size:1.3rem;font-weight:700;width:100%;text-align:center}
+        .stat-box input:focus{outline:none}
+        .stat-box input::placeholder{color:#3d5a80}
+        .stat-box label{display:block;font-size:0.65rem;color:#5c7a99;margin-top:3px}
+        
+        .check-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px}
+        .check-item{display:flex;align-items:center;gap:6px;font-size:0.8rem;color:#90caf9}
+        .check-item input{width:16px;height:16px;accent-color:#64b5f6}
+        
+        /* Media Capture */
+        .media-capture{margin-bottom:15px}
+        .capture-btns{display:flex;gap:10px;margin-bottom:15px}
+        .capture-btn{flex:1;padding:15px;border:2px dashed rgba(100,181,246,0.3);border-radius:12px;background:rgba(100,181,246,0.08);color:#64b5f6;font-size:0.85rem;font-weight:600;cursor:pointer;text-align:center;transition:all 0.2s}
+        .capture-btn:active{background:rgba(100,181,246,0.2);border-color:#64b5f6}
+        .capture-btn input{display:none}
+        .media-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+        .media-thumb{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;background:#0d2137;border:1px solid rgba(100,181,246,0.2)}
+        .media-thumb img,.media-thumb video{width:100%;height:100%;object-fit:cover}
+        .media-thumb .remove{position:absolute;top:5px;right:5px;width:24px;height:24px;background:#ef5350;color:#fff;border:none;border-radius:50%;font-size:14px;cursor:pointer}
+        .media-thumb .type-badge{position:absolute;bottom:5px;left:5px;background:rgba(10,22,40,0.9);padding:2px 6px;border-radius:4px;font-size:0.65rem;color:#90caf9}
+        .media-count{color:#5c7a99;font-size:0.8rem;margin-top:10px}
+        
+        /* Real Talk Custom */
+        .real-talk-custom{margin-top:10px;display:none}
+        .real-talk-custom.show{display:block}
+        .real-talk-custom input{background:rgba(13,33,55,0.8);border:1px solid rgba(100,181,246,0.2);border-radius:8px;padding:10px;color:#fff;font-size:0.9rem;width:100%}
+        .real-talk-custom input:focus{outline:none;border-color:#64b5f6}
+        
+        /* Story Entry */
+        .story-entry{background:rgba(121,134,203,0.1);border-radius:10px;padding:12px;margin-bottom:12px;border:1px solid rgba(121,134,203,0.2)}
+        .story-entry input{background:rgba(13,33,55,0.8);border:1px solid rgba(100,181,246,0.2);border-radius:8px;padding:10px;color:#fff;font-size:0.85rem;width:100%;margin-bottom:8px}
+        .story-entry input:focus{outline:none;border-color:#64b5f6}
+        .story-entry textarea{min-height:60px}
+        .story-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+        .consent-row{display:flex;gap:12px;flex-wrap:wrap;margin:10px 0}
+        .consent-row label{font-size:0.8rem}
+        .remove-story{background:linear-gradient(135deg,#5c6bc0,#3f51b5);color:#fff;border:none;padding:8px 12px;border-radius:5px;font-size:0.75rem;margin-top:8px;cursor:pointer}
+        .remove-story:hover{opacity:0.9}
+        .add-btn{background:linear-gradient(135deg,#5c6bc0,#3f51b5);color:#fff;border:none;padding:12px;border-radius:10px;font-size:0.85rem;font-weight:600;width:100%;margin-top:8px;cursor:pointer}
+        .add-btn:hover{opacity:0.9}
+        
+        /* Export/Sync Section */
+        .sync-section{background:linear-gradient(135deg,rgba(100,181,246,0.1),rgba(100,181,246,0.05));border-radius:15px;padding:15px;margin-top:15px;border:1px solid rgba(100,181,246,0.25)}
+        .sync-section h3{color:#64b5f6;margin-bottom:12px;font-size:0.95rem}
+        .sync-section input[type="text"]{background:rgba(13,33,55,0.8);border:1px solid rgba(100,181,246,0.2);border-radius:10px;padding:10px;color:#fff;font-size:0.9rem;width:100%;margin-bottom:10px}
+        .sync-section input[type="text"]:focus{outline:none;border-color:#64b5f6}
+        .sync-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+        .sync-btn{padding:12px;border:none;border-radius:10px;font-weight:600;font-size:0.85rem;cursor:pointer;transition:opacity 0.2s}
+        .sync-btn:hover{opacity:0.9}
+        .sync-btn.upload{background:linear-gradient(135deg,#42a5f5,#1e88e5);color:#fff}
+        .sync-btn.upload:disabled{background:#1e3a5f;color:#5c7a99}
+        .sync-btn.export{background:linear-gradient(135deg,#5c6bc0,#3f51b5);color:#fff}
+        .sync-btn.settings{background:linear-gradient(135deg,#29b6f6,#0288d1);color:#fff;grid-column:1/-1}
+        .sync-btn.clear{background:linear-gradient(135deg,#78909c,#546e7a);color:#fff;grid-column:1/-1}
+        .sync-btn.lock{background:linear-gradient(135deg,#7986cb,#5c6bc0);color:#fff;grid-column:1/-1}
+        
+        .pending-badge{background:#42a5f5;color:#fff;padding:2px 8px;border-radius:10px;font-size:0.75rem;margin-left:10px}
+        
+        /* Settings Modal */
+        .modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(10,22,40,0.95);z-index:1000;display:none;overflow-y:auto;padding:20px}
+        .modal.show{display:block}
+        .modal-content{background:linear-gradient(135deg,#0d2137,#132f4c);border-radius:15px;padding:20px;max-width:500px;margin:0 auto;border:1px solid rgba(100,181,246,0.2)}
+        .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+        .modal-header h3{color:#64b5f6}
+        .modal-close{background:none;border:none;color:#90caf9;font-size:1.5rem;cursor:pointer}
+        .setting-group{margin-bottom:20px}
+        .setting-group label{display:block;color:#90caf9;font-size:0.85rem;margin-bottom:8px}
+        .setting-group input{width:100%;background:rgba(13,33,55,0.8);border:1px solid rgba(100,181,246,0.2);border-radius:8px;padding:12px;color:#fff;font-size:0.9rem}
+        .setting-group input:focus{outline:none;border-color:#64b5f6}
+        .setting-group small{display:block;color:#5c7a99;font-size:0.75rem;margin-top:5px}
+        .setting-btn{width:100%;padding:12px;border:none;border-radius:10px;font-weight:600;margin-top:10px;cursor:pointer}
+        .setting-btn.save{background:linear-gradient(135deg,#42a5f5,#1e88e5);color:#fff}
+        .setting-btn.reset-pin{background:linear-gradient(135deg,#5c6bc0,#3f51b5);color:#fff}
+        
+        .hipaa-notice{background:rgba(100,181,246,0.1);border:1px solid rgba(100,181,246,0.3);border-radius:8px;padding:12px;margin-bottom:15px;font-size:0.8rem;color:#90caf9}
+        
+        .section-divider{border:none;border-top:1px solid rgba(100,181,246,0.15);margin:20px 0}
+        
+        /* Consent colors - keeping semantic meaning */
+        .consent-full{color:#66bb6a !important}
+        .consent-partial{color:#ffa726 !important}
+        .consent-internal{color:#ef5350 !important}
+    </style>
+</head>
+<body>
+    <!-- PIN Lock Screen -->
+    <div class="lock-screen" id="lockScreen">
+        <div class="lock-icon">🔐</div>
+        <div class="lock-title" id="lockTitle">Enter PIN</div>
+        <div class="lock-subtitle" id="lockSubtitle">Enter your 4-digit PIN to unlock</div>
+        <div class="pin-display" id="pinDisplay">
+            <div class="pin-dot"></div>
+            <div class="pin-dot"></div>
+            <div class="pin-dot"></div>
+            <div class="pin-dot"></div>
+        </div>
+        <div class="pin-pad">
+            <button class="pin-btn" onclick="pinInput(1)">1</button>
+            <button class="pin-btn" onclick="pinInput(2)">2</button>
+            <button class="pin-btn" onclick="pinInput(3)">3</button>
+            <button class="pin-btn" onclick="pinInput(4)">4</button>
+            <button class="pin-btn" onclick="pinInput(5)">5</button>
+            <button class="pin-btn" onclick="pinInput(6)">6</button>
+            <button class="pin-btn" onclick="pinInput(7)">7</button>
+            <button class="pin-btn" onclick="pinInput(8)">8</button>
+            <button class="pin-btn" onclick="pinInput(9)">9</button>
+            <button class="pin-btn action" onclick="pinClear()">Clear</button>
+            <button class="pin-btn" onclick="pinInput(0)">0</button>
+            <button class="pin-btn action" onclick="pinDelete()">⌫</button>
+        </div>
+        <div class="pin-error" id="pinError"></div>
+    </div>
+    
+    <!-- Main App -->
+    <div class="app-container" id="appContainer">
+        <div class="header">
+            <h1>📋 DeployNotes</h1>
+            <p>Field Reporting • <span class="deployment-name" id="headerDeployment">Configure Deployment</span></p>
+        </div>
+        
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="status-dot" id="connectionDot"></div>
+                <span id="connectionText">Online</span>
+            </div>
+            <div class="status-item">
+                <div class="status-dot" id="syncDot"></div>
+                <span id="syncText">Synced</span>
+                <span class="pending-badge" id="pendingBadge" style="display:none">0</span>
+            </div>
+            <div class="status-item">
+                <span id="saveStatus">Ready</span>
+            </div>
+        </div>
+        
+        <!-- Deployment & Location Info -->
+        <div class="card">
+            <div class="card-header">
+                <span class="emoji">📍</span>
+                <h2>Deployment & Location<small>Where are you working today?</small></h2>
+            </div>
+            <div class="location-info">
+                <div class="location-group">
+                    <label>Date</label>
+                    <input type="date" id="reportDate">
+                </div>
+                <div class="location-group">
+                    <label>Deployment Day</label>
+                    <select id="dayNumber">
+                        <option value="1">Day 1</option>
+                        <option value="2">Day 2</option>
+                        <option value="3">Day 3</option>
+                        <option value="4">Day 4</option>
+                        <option value="5">Day 5</option>
+                        <option value="6">Day 6</option>
+                        <option value="7">Day 7</option>
+                        <option value="8">Day 8</option>
+                        <option value="9">Day 9</option>
+                        <option value="10">Day 10</option>
+                        <option value="11">Day 11</option>
+                        <option value="12">Day 12</option>
+                        <option value="13">Day 13</option>
+                        <option value="14">Day 14</option>
+                    </select>
+                </div>
+                <div class="location-group full">
+                    <label>Your Name</label>
+                    <input type="text" id="yourName" placeholder="Enter your name">
+                </div>
+                <div class="location-group full">
+                    <label>Deployment Location (Country/Region/Mission)</label>
+                    <input type="text" id="deploymentLocation" placeholder="e.g., Jamaica - Hurricane Melissa Relief, Haiti, Puerto Rico...">
+                </div>
+                <div class="location-group">
+                    <label>Parish / Province / State</label>
+                    <input type="text" id="parish" placeholder="e.g., St. James, Port-au-Prince...">
+                </div>
+                <div class="location-group">
+                    <label>Community / Town / Village</label>
+                    <input type="text" id="community" placeholder="e.g., Catherine Hall, Cité Soleil...">
+                </div>
+                <div class="location-group full">
+                    <label>Facility / Site Name (if applicable)</label>
+                    <input type="text" id="facility" placeholder="e.g., Cornwall Regional Hospital, Community Center, Shelter #3...">
+                </div>
+            </div>
+        </div>
+        
+        <!-- Journey -->
+        <div class="card journey">
+            <div class="card-header">
+                <span class="emoji">🚗</span>
+                <h2>The Journey<small>What you saw, felt, encountered</small></h2>
+            </div>
+            <select id="dayTheme" style="margin-bottom:10px">
+                <option value="">Select day theme...</option>
+                <option value="day1">Day 1: "The Journey Begins"</option>
+                <option value="day2">Day 2: "Seeing the Reality"</option>
+                <option value="day3">Day 3: "Hands to Work"</option>
+                <option value="day4">Day 4: "Human Connection"</option>
+                <option value="day5">Day 5: "The Hard Truth"</option>
+                <option value="day6">Day 6: "Victory Day"</option>
+                <option value="day7">Day 7: "This Isn't Goodbye"</option>
+            </select>
+            <textarea id="journeyNotes" placeholder="Today we traveled through... I noticed... The conditions were..."></textarea>
+        </div>
+        
+        <!-- People -->
+        <div class="card people">
+            <div class="card-header">
+                <span class="emoji">👥</span>
+                <h2>The People<small>Who did you meet?</small></h2>
+            </div>
+            <textarea id="peopleNotes" placeholder="Met a woman named... The community gathered... Local leaders shared..."></textarea>
+            
+            <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(100,181,246,0.15)">
+                <label style="color:#5c7a99;font-size:0.8rem;display:block;margin-bottom:8px">Consent Status for People Mentioned Above:</label>
+                <div style="display:flex;flex-direction:column;gap:8px">
+                    <label class="check-item consent-full">
+                        <input type="checkbox" id="peopleConsentFull"> 
+                        ✅ <strong>Total Consent</strong> - Names, photos, quotes can be used publicly
+                    </label>
+                    <label class="check-item consent-partial">
+                        <input type="checkbox" id="peopleConsentPartial"> 
+                        ⚠️ <strong>Partial Consent</strong> - Given as anonymous (no names/identifying info)
+                    </label>
+                    <label class="check-item consent-internal">
+                        <input type="checkbox" id="peopleConsentInternal"> 
+                        🔒 <strong>Internal Only</strong> - For team communication only, not for external use
+                    </label>
+                </div>
+                <textarea id="peopleConsentNotes" placeholder="Consent details: Who gave what level of consent..." style="margin-top:10px;min-height:50px"></textarea>
+            </div>
+        </div>
+        
+        <!-- Impact -->
+        <div class="card impact">
+            <div class="card-header">
+                <span class="emoji">💪</span>
+                <h2>The Impact<small>What got done?</small></h2>
+            </div>
+            <div class="quick-stats">
+                <div class="stat-box"><input type="number" id="peopleReached" placeholder="0"><label>People</label></div>
+                <div class="stat-box"><input type="number" id="households" placeholder="0"><label>Households</label></div>
+                <div class="stat-box"><input type="number" id="storiesCaptured" placeholder="0"><label>Stories</label></div>
+            </div>
+            <div class="check-grid">
+                <label class="check-item"><input type="checkbox" id="actWASH"> WASH</label>
+                <label class="check-item"><input type="checkbox" id="actLepto"> Lepto/Disease Ed</label>
+                <label class="check-item"><input type="checkbox" id="actAssess"> Assessment</label>
+                <label class="check-item"><input type="checkbox" id="actDistro"> Supplies</label>
+                <label class="check-item"><input type="checkbox" id="actConstruction"> 🔨 Construction</label>
+                <label class="check-item"><input type="checkbox" id="actDebris"> Debris</label>
+                <label class="check-item"><input type="checkbox" id="actShelter"> Shelter</label>
+                <label class="check-item"><input type="checkbox" id="actTraining"> Training</label>
+                <label class="check-item"><input type="checkbox" id="actMedical"> Medical</label>
+                <label class="check-item"><input type="checkbox" id="actFood"> Food Distribution</label>
+            </div>
+            <textarea id="impactNotes" placeholder="Today we accomplished..."></textarea>
+        </div>
+        
+        <!-- Media Capture -->
+        <div class="card media">
+            <div class="card-header">
+                <span class="emoji">📸</span>
+                <h2>Photos & Videos<small>Capture evidence & stories</small></h2>
+            </div>
+            <div class="hipaa-notice">
+                ⚠️ Media containing identifiable individuals requires consent. Check consent before capturing.
+            </div>
+            <div class="capture-btns">
+                <label class="capture-btn">
+                    📷 Take Photo
+                    <input type="file" accept="image/*" capture="environment" onchange="captureMedia(this, 'photo')">
+                </label>
+                <label class="capture-btn">
+                    🎥 Record Video
+                    <input type="file" accept="video/*" capture="environment" onchange="captureMedia(this, 'video')">
+                </label>
+            </div>
+            <div class="capture-btns">
+                <label class="capture-btn">
+                    🖼️ Choose from Gallery
+                    <input type="file" accept="image/*,video/*" multiple onchange="captureMedia(this, 'gallery')">
+                </label>
+            </div>
+            <div class="media-grid" id="mediaGrid"></div>
+            <div class="media-count" id="mediaCount">0 files captured (0 MB)</div>
+            <textarea id="mediaNotes" placeholder="Describe key photos/videos..." style="margin-top:10px;min-height:60px"></textarea>
+        </div>
+        
+        <!-- Stories -->
+        <div class="card story">
+            <div class="card-header">
+                <span class="emoji">📖</span>
+                <h2>Stories Captured<small>Human stories for reports</small></h2>
+            </div>
+            <div id="storiesContainer"></div>
+            <button class="add-btn" onclick="addStory()">+ Add Story</button>
+        </div>
+        
+        <!-- Health -->
+        <div class="card">
+            <div class="card-header">
+                <span class="emoji">🏥</span>
+                <h2>Health Risks</h2>
+            </div>
+            <div class="check-grid">
+                <label class="check-item"><input type="checkbox" id="riskWater"> Standing Water</label>
+                <label class="check-item"><input type="checkbox" id="riskSanitation"> Sanitation</label>
+                <label class="check-item"><input type="checkbox" id="riskVector"> Mosquitoes</label>
+                <label class="check-item"><input type="checkbox" id="riskMedical"> Medical Needs</label>
+                <label class="check-item"><input type="checkbox" id="riskContaminated"> Contaminated Water</label>
+                <label class="check-item"><input type="checkbox" id="riskWound"> Wounds</label>
+                <label class="check-item"><input type="checkbox" id="riskRespiratory"> Respiratory</label>
+                <label class="check-item"><input type="checkbox" id="riskMold"> Mold</label>
+                <label class="check-item"><input type="checkbox" id="riskMental"> Mental Health</label>
+                <label class="check-item"><input type="checkbox" id="riskElderly"> Elderly</label>
+                <label class="check-item"><input type="checkbox" id="riskChildren"> Children</label>
+                <label class="check-item"><input type="checkbox" id="riskChronic"> Chronic Illness</label>
+            </div>
+            <textarea id="healthNotes" placeholder="Health observations..." style="min-height:60px"></textarea>
+        </div>
+        
+        <!-- Reflection -->
+        <div class="card reflection">
+            <div class="card-header">
+                <span class="emoji">💭</span>
+                <h2>End of Day<small>Reflection & Real Talk</small></h2>
+            </div>
+            <label style="color:#aaa;font-size:0.8rem;margin-bottom:5px;display:block">Real Talk Angle</label>
+            <select id="realTalkAngle" style="margin-bottom:10px" onchange="toggleCustomAngle()">
+                <option value="">Select angle or enter custom...</option>
+                <option value="harder">😓 Harder than imagined</option>
+                <option value="bureaucracy">📋 Bureaucracy challenges</option>
+                <option value="emotional">💔 Emotional toll</option>
+                <option value="unexpected">😮 Unexpected difficulty</option>
+                <option value="supplies">🚨 We ran out / urgent need</option>
+                <option value="overwhelmed">🌊 Overwhelmed by need</option>
+                <option value="hopeful">🌅 Finding hope</option>
+                <option value="grateful">🙏 Gratitude</option>
+                <option value="lesson">📚 Lesson learned</option>
+                <option value="ask">🆘 Honest ask</option>
+                <option value="custom">✏️ Enter my own angle...</option>
+            </select>
+            <div class="real-talk-custom" id="customAngleContainer">
+                <input type="text" id="customAngle" placeholder="Enter your own real talk angle...">
+            </div>
+            <textarea id="reflection" placeholder="Today hit different because... I'll remember... Tomorrow we need to..."></textarea>
+        </div>
+        
+        <!-- Sync & Export -->
+        <div class="sync-section">
+            <h3>💾 Save & Sync</h3>
+            <input type="text" id="filename" placeholder="Day1_Location_YourName">
+            <div class="sync-btns">
+                <button class="sync-btn upload" id="uploadBtn" onclick="uploadToCloud()">
+                    ☁️ Upload to Cloud
+                </button>
+                <button class="sync-btn export" onclick="exportLocal()">
+                    📄 Export Local
+                </button>
+                <button class="sync-btn settings" onclick="showSettings()">
+                    ⚙️ Settings & Cloud Setup
+                </button>
+                <button class="sync-btn lock" onclick="lockApp()">
+                    🔒 Lock App
+                </button>
+                <button class="sync-btn clear" onclick="clearAll()">
+                    🗑️ Clear & Start Fresh
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Settings Modal -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚙️ Settings</h3>
+                <button class="modal-close" onclick="closeSettings()">×</button>
+            </div>
+            
+            <div class="hipaa-notice">
+                <strong>HIPAA Compliance:</strong> Configure your own compliant storage endpoint (AWS S3, Azure Blob, Google Cloud with BAA, or Box/Sync.com Business).
+            </div>
+            
+            <div class="setting-group">
+                <label>Default Deployment Location</label>
+                <input type="text" id="defaultDeployment" placeholder="e.g., Jamaica - Hurricane Melissa Relief">
+                <small>This will auto-fill for new reports</small>
+            </div>
+            
+            <hr class="section-divider">
+            
+            <div class="setting-group">
+                <label>Cloud Storage URL</label>
+                <input type="url" id="cloudUrl" placeholder="https://your-hipaa-storage.com/upload">
+                <small>Your HIPAA-compliant storage endpoint</small>
+            </div>
+            
+            <div class="setting-group">
+                <label>API Key / Token</label>
+                <input type="password" id="cloudApiKey" placeholder="Your API key or access token">
+                <small>Stored encrypted locally</small>
+            </div>
+            
+            <div class="setting-group">
+                <label>Organization ID</label>
+                <input type="text" id="orgId" placeholder="e.g., BeVera Corps">
+            </div>
+            
+            <button class="setting-btn save" onclick="saveSettings()">Save Settings</button>
+            <button class="setting-btn reset-pin" onclick="resetPin()">Reset PIN</button>
+        </div>
+    </div>
+
+    <script>
+    // ===== PIN SECURITY =====
+    let enteredPin = '';
+    let isSetupMode = false;
+    let setupPin = '';
+    const PIN_LENGTH = 4;
+    
+    function initPinSystem() {
+        const storedHash = localStorage.getItem('deployNotesPinHash');
+        if (!storedHash) {
+            isSetupMode = true;
+            document.getElementById('lockTitle').textContent = 'Create PIN';
+            document.getElementById('lockSubtitle').textContent = 'Create a 4-digit PIN to secure your data';
+            document.querySelector('.lock-screen').classList.add('setup-mode');
+        }
+    }
+    
+    function pinInput(num) {
+        if (enteredPin.length >= PIN_LENGTH) return;
+        enteredPin += num;
+        updatePinDisplay();
+        
+        if (enteredPin.length === PIN_LENGTH) {
+            setTimeout(() => validatePin(), 200);
+        }
+    }
+    
+    function pinDelete() {
+        enteredPin = enteredPin.slice(0, -1);
+        updatePinDisplay();
+    }
+    
+    function pinClear() {
+        enteredPin = '';
+        updatePinDisplay();
+        document.getElementById('pinError').textContent = '';
+    }
+    
+    function updatePinDisplay() {
+        const dots = document.querySelectorAll('.pin-dot');
+        dots.forEach((dot, i) => {
+            dot.classList.remove('filled', 'error');
+            if (i < enteredPin.length) dot.classList.add('filled');
+        });
+    }
+    
+    function validatePin() {
+        if (isSetupMode) {
+            if (!setupPin) {
+                setupPin = enteredPin;
+                enteredPin = '';
+                updatePinDisplay();
+                document.getElementById('lockSubtitle').textContent = 'Confirm your PIN';
+            } else {
+                if (enteredPin === setupPin) {
+                    localStorage.setItem('deployNotesPinHash', hashPin(enteredPin));
+                    unlockApp();
+                } else {
+                    showPinError('PINs do not match. Try again.');
+                    setupPin = '';
+                }
+            }
+        } else {
+            const storedHash = localStorage.getItem('deployNotesPinHash');
+            if (hashPin(enteredPin) === storedHash) {
+                unlockApp();
+            } else {
+                showPinError('Incorrect PIN');
+            }
+        }
+    }
+    
+    function showPinError(msg) {
+        document.getElementById('pinError').textContent = msg;
+        document.querySelectorAll('.pin-dot').forEach(d => d.classList.add('error'));
+        enteredPin = '';
+        setTimeout(() => {
+            updatePinDisplay();
+            document.getElementById('pinError').textContent = '';
+        }, 1500);
+    }
+    
+    function hashPin(pin) {
+        let hash = 0;
+        const str = pin + 'deploynotes-secure-salt-2024';
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash;
+        }
+        return hash.toString(16);
+    }
+    
+    function unlockApp() {
+        document.getElementById('lockScreen').classList.add('hidden');
+        document.getElementById('appContainer').classList.add('visible');
+        initApp();
+    }
+    
+    function lockApp() {
+        enteredPin = '';
+        updatePinDisplay();
+        document.getElementById('lockScreen').classList.remove('hidden');
+        document.getElementById('appContainer').classList.remove('visible');
+        isSetupMode = false;
+        document.getElementById('lockTitle').textContent = 'Enter PIN';
+        document.getElementById('lockSubtitle').textContent = 'Enter your 4-digit PIN to unlock';
+    }
+    
+    function resetPin() {
+        if (confirm('Reset PIN? You will need to create a new one.')) {
+            localStorage.removeItem('deployNotesPinHash');
+            closeSettings();
+            lockApp();
+            isSetupMode = true;
+            setupPin = '';
+            document.getElementById('lockTitle').textContent = 'Create PIN';
+            document.getElementById('lockSubtitle').textContent = 'Create a 4-digit PIN to secure your data';
+        }
+    }
+    
+    // ===== CUSTOM ANGLE =====
+    function toggleCustomAngle() {
+        const select = document.getElementById('realTalkAngle');
+        const customContainer = document.getElementById('customAngleContainer');
+        if (select.value === 'custom') {
+            customContainer.classList.add('show');
+            document.getElementById('customAngle').focus();
+        } else {
+            customContainer.classList.remove('show');
+        }
+    }
+    
+    // ===== MEDIA CAPTURE & STORAGE =====
+    let mediaFiles = [];
+    let db = null;
+    
+    async function initIndexedDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open('DeployNotesDB', 1);
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => { db = request.result; resolve(db); };
+            request.onupgradeneeded = (e) => {
+                const database = e.target.result;
+                if (!database.objectStoreNames.contains('media')) {
+                    database.createObjectStore('media', { keyPath: 'id', autoIncrement: true });
+                }
+                if (!database.objectStoreNames.contains('reports')) {
+                    database.createObjectStore('reports', { keyPath: 'id', autoIncrement: true });
+                }
+            };
+        });
+    }
+    
+    async function captureMedia(input, type) {
+        const files = input.files;
+        for (const file of files) {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const mediaItem = {
+                    id: Date.now() + Math.random(),
+                    type: file.type.startsWith('video') ? 'video' : 'photo',
+                    name: file.name,
+                    size: file.size,
+                    data: e.target.result,
+                    timestamp: new Date().toISOString(),
+                    uploaded: false
+                };
+                
+                mediaFiles.push(mediaItem);
+                await saveMediaToDB(mediaItem);
+                renderMediaGrid();
+                saveDraft();
+            };
+            reader.readAsDataURL(file);
+        }
+        input.value = '';
+    }
+    
+    async function saveMediaToDB(item) {
+        if (!db) await initIndexedDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction('media', 'readwrite');
+            tx.objectStore('media').put(item);
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error);
+        });
+    }
+    
+    async function loadMediaFromDB() {
+        if (!db) await initIndexedDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction('media', 'readonly');
+            const request = tx.objectStore('media').getAll();
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+    
+    async function deleteMediaFromDB(id) {
+        if (!db) await initIndexedDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction('media', 'readwrite');
+            tx.objectStore('media').delete(id);
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error);
+        });
+    }
+    
+    function renderMediaGrid() {
+        const grid = document.getElementById('mediaGrid');
+        grid.innerHTML = mediaFiles.map((m, i) => `
+            <div class="media-thumb">
+                ${m.type === 'video' 
+                    ? `<video src="${m.data}" muted></video>`
+                    : `<img src="${m.data}" alt="Captured">`
+                }
+                <button class="remove" onclick="removeMedia(${i})">×</button>
+                <span class="type-badge">${m.type === 'video' ? '🎥' : '📷'}</span>
+            </div>
+        `).join('');
+        
+        const totalSize = mediaFiles.reduce((sum, m) => sum + m.size, 0);
+        document.getElementById('mediaCount').textContent = 
+            `${mediaFiles.length} files captured (${(totalSize / 1024 / 1024).toFixed(1)} MB)`;
+        
+        updatePendingCount();
+    }
+    
+    async function removeMedia(index) {
+        if (confirm('Remove this media?')) {
+            const item = mediaFiles[index];
+            await deleteMediaFromDB(item.id);
+            mediaFiles.splice(index, 1);
+            renderMediaGrid();
+            saveDraft();
+        }
+    }
+    
+    // ===== CLOUD UPLOAD =====
+    async function uploadToCloud() {
+        const settings = getSettings();
+        if (!settings.cloudUrl) {
+            alert('Please configure cloud storage in Settings first.');
+            showSettings();
+            return;
+        }
+        
+        const btn = document.getElementById('uploadBtn');
+        btn.disabled = true;
+        btn.textContent = '⏳ Uploading...';
+        
+        try {
+            const data = collectData();
+            const payload = {
+                report: data,
+                media: mediaFiles.map(m => ({
+                    ...m,
+                    data: m.data
+                })),
+                orgId: settings.orgId,
+                uploadedAt: new Date().toISOString()
+            };
+            
+            const response = await fetch(settings.cloudUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${settings.cloudApiKey}`
+                },
+                body: JSON.stringify(payload)
+            });
+            
+            if (response.ok) {
+                mediaFiles.forEach(m => m.uploaded = true);
+                for (const m of mediaFiles) {
+                    await saveMediaToDB(m);
+                }
+                
+                alert('✅ Upload successful!');
+                updateSyncStatus(true);
+            } else {
+                throw new Error(`Upload failed: ${response.status}`);
+            }
+        } catch (error) {
+            console.error('Upload error:', error);
+            alert(`❌ Upload failed: ${error.message}\n\nData saved locally. Try again when connected.`);
+            savePendingUpload(collectData());
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '☁️ Upload to Cloud';
+        }
+    }
+    
+    function savePendingUpload(data) {
+        const pending = JSON.parse(localStorage.getItem('deployNotesPending') || '[]');
+        pending.push({ data, timestamp: new Date().toISOString() });
+        localStorage.setItem('deployNotesPending', JSON.stringify(pending));
+        updatePendingCount();
+    }
+    
+    function updatePendingCount() {
+        const pending = JSON.parse(localStorage.getItem('deployNotesPending') || '[]');
+        const unuploadedMedia = mediaFiles.filter(m => !m.uploaded).length;
+        const total = pending.length + unuploadedMedia;
+        
+        const badge = document.getElementById('pendingBadge');
+        const syncDot = document.getElementById('syncDot');
+        const syncText = document.getElementById('syncText');
+        
+        if (total > 0) {
+            badge.style.display = 'inline';
+            badge.textContent = total;
+            syncDot.classList.remove('synced');
+            syncDot.classList.add('pending');
+            syncText.textContent = 'Pending';
+        } else {
+            badge.style.display = 'none';
+            syncDot.classList.remove('pending');
+            syncDot.classList.add('synced');
+            syncText.textContent = 'Synced';
+        }
+    }
+    
+    function updateSyncStatus(synced) {
+        updatePendingCount();
+    }
+    
+    // ===== LOCAL EXPORT =====
+    function exportLocal() {
+        const data = collectData();
+        const filename = document.getElementById('filename').value || 'DeployNotes_Report';
+        
+        const exportData = {
+            ...data,
+            mediaCount: mediaFiles.length,
+            exportedAt: new Date().toISOString()
+        };
+        
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${filename}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        if (mediaFiles.length > 0 && confirm(`Export ${mediaFiles.length} media files separately?`)) {
+            mediaFiles.forEach((m, i) => {
+                const link = document.createElement('a');
+                link.href = m.data;
+                link.download = `${filename}_media_${i + 1}.${m.type === 'video' ? 'mp4' : 'jpg'}`;
+                link.click();
+            });
+        }
+        
+        document.getElementById('saveStatus').textContent = 'Exported!';
+    }
+    
+    // ===== SETTINGS =====
+    function showSettings() {
+        const settings = getSettings();
+        document.getElementById('defaultDeployment').value = settings.defaultDeployment || '';
+        document.getElementById('cloudUrl').value = settings.cloudUrl || '';
+        document.getElementById('cloudApiKey').value = settings.cloudApiKey || '';
+        document.getElementById('orgId').value = settings.orgId || '';
+        document.getElementById('settingsModal').classList.add('show');
+    }
+    
+    function closeSettings() {
+        document.getElementById('settingsModal').classList.remove('show');
+    }
+    
+    function saveSettings() {
+        const settings = {
+            defaultDeployment: document.getElementById('defaultDeployment').value,
+            cloudUrl: document.getElementById('cloudUrl').value,
+            cloudApiKey: document.getElementById('cloudApiKey').value,
+            orgId: document.getElementById('orgId').value
+        };
+        localStorage.setItem('deployNotesSettings', JSON.stringify(settings));
+        
+        // Update header if deployment is set
+        if (settings.defaultDeployment) {
+            document.getElementById('headerDeployment').textContent = settings.defaultDeployment;
+        }
+        
+        alert('Settings saved!');
+        closeSettings();
+    }
+    
+    function getSettings() {
+        return JSON.parse(localStorage.getItem('deployNotesSettings') || '{}');
+    }
+    
+    // ===== STORIES =====
+    let storyCount = 0;
+    
+    function addStory() {
+        storyCount++;
+        const container = document.getElementById('storiesContainer');
+        const div = document.createElement('div');
+        div.className = 'story-entry';
+        div.id = `story-${storyCount}`;
+        div.innerHTML = `
+            <div class="story-row">
+                <input type="text" class="story-name" placeholder="Name/Pseudonym">
+                <input type="text" class="story-role" placeholder="Role">
+            </div>
+            <div class="consent-row">
+                <label class="check-item consent-full"><input type="checkbox" class="consent-full"> ✅ Full</label>
+                <label class="check-item consent-partial"><input type="checkbox" class="consent-partial"> ⚠️ Partial</label>
+                <label class="check-item consent-internal"><input type="checkbox" class="consent-internal"> 🔒 Internal</label>
+            </div>
+            <textarea class="story-their-words" placeholder="Their story..." style="min-height:60px"></textarea>
+            <input type="text" class="story-quote" placeholder='Key quote: "..."'>
+            <textarea class="story-outcome" placeholder="Outcome..." style="min-height:50px"></textarea>
+            <button class="remove-story" onclick="removeStory(${storyCount})">Remove</button>
+        `;
+        container.appendChild(div);
+        saveDraft();
+    }
+    
+    function removeStory(id) {
+        if (confirm('Remove story?')) {
+            document.getElementById(`story-${id}`).remove();
+            saveDraft();
+        }
+    }
+    
+    // ===== DATA COLLECTION =====
+    function collectData() {
+        const realTalkAngle = document.getElementById('realTalkAngle').value;
+        const customAngle = document.getElementById('customAngle').value;
+        
+        return {
+            date: document.getElementById('reportDate').value,
+            day: document.getElementById('dayNumber').value,
+            name: document.getElementById('yourName').value,
+            location: {
+                deployment: document.getElementById('deploymentLocation').value,
+                parish: document.getElementById('parish').value,
+                community: document.getElementById('community').value,
+                facility: document.getElementById('facility').value
+            },
+            dayTheme: document.getElementById('dayTheme').value,
+            journey: document.getElementById('journeyNotes').value,
+            people: {
+                notes: document.getElementById('peopleNotes').value,
+                consent: {
+                    full: document.getElementById('peopleConsentFull')?.checked || false,
+                    partial: document.getElementById('peopleConsentPartial')?.checked || false,
+                    internal: document.getElementById('peopleConsentInternal')?.checked || false,
+                    notes: document.getElementById('peopleConsentNotes')?.value || ''
+                }
+            },
+            impact: {
+                peopleReached: document.getElementById('peopleReached').value,
+                households: document.getElementById('households').value,
+                storiesCaptured: document.getElementById('storiesCaptured').value,
+                activities: ['WASH','Lepto','Assess','Distro','Construction','Debris','Shelter','Training','Medical','Food']
+                    .filter(a => document.getElementById(`act${a}`)?.checked),
+                notes: document.getElementById('impactNotes').value
+            },
+            health: {
+                risks: ['Water','Sanitation','Vector','Medical','Contaminated','Wound','Respiratory','Mold','Mental','Elderly','Children','Chronic']
+                    .filter(r => document.getElementById(`risk${r}`)?.checked),
+                notes: document.getElementById('healthNotes').value
+            },
+            stories: collectStories(),
+            realTalkAngle: realTalkAngle === 'custom' ? customAngle : realTalkAngle,
+            reflection: document.getElementById('reflection').value,
+            mediaNotes: document.getElementById('mediaNotes').value,
+            mediaCount: mediaFiles.length
+        };
+    }
+    
+    function collectStories() {
+        const stories = [];
+        document.querySelectorAll('.story-entry').forEach(entry => {
+            const consent = [];
+            if (entry.querySelector('.consent-full')?.checked) consent.push('Full');
+            if (entry.querySelector('.consent-partial')?.checked) consent.push('Partial');
+            if (entry.querySelector('.consent-internal')?.checked) consent.push('Internal');
+            stories.push({
+                name: entry.querySelector('.story-name').value,
+                role: entry.querySelector('.story-role').value,
+                consent: consent.join(', ') || 'Not specified',
+                theirWords: entry.querySelector('.story-their-words').value,
+                quote: entry.querySelector('.story-quote').value,
+                outcome: entry.querySelector('.story-outcome').value
+            });
+        });
+        return stories;
+    }
+    
+    // ===== AUTO-SAVE =====
+    function saveDraft() {
+        localStorage.setItem('deployNotesDraft', JSON.stringify(collectData()));
+        document.getElementById('saveStatus').textContent = `Saved ${new Date().toLocaleTimeString()}`;
+    }
+    
+    function loadDraft() {
+        const saved = localStorage.getItem('deployNotesDraft');
+        if (saved) {
+            const d = JSON.parse(saved);
+            document.getElementById('reportDate').value = d.date || '';
+            document.getElementById('dayNumber').value = d.day || '1';
+            document.getElementById('yourName').value = d.name || '';
+            document.getElementById('deploymentLocation').value = d.location?.deployment || '';
+            document.getElementById('parish').value = d.location?.parish || '';
+            document.getElementById('community').value = d.location?.community || '';
+            document.getElementById('facility').value = d.location?.facility || '';
+            document.getElementById('dayTheme').value = d.dayTheme || '';
+            document.getElementById('journeyNotes').value = d.journey || '';
+            
+            // Handle people section (could be old format string or new format object)
+            if (typeof d.people === 'string') {
+                document.getElementById('peopleNotes').value = d.people || '';
+            } else if (d.people) {
+                document.getElementById('peopleNotes').value = d.people.notes || '';
+                if (d.people.consent) {
+                    document.getElementById('peopleConsentFull').checked = d.people.consent.full || false;
+                    document.getElementById('peopleConsentPartial').checked = d.people.consent.partial || false;
+                    document.getElementById('peopleConsentInternal').checked = d.people.consent.internal || false;
+                    document.getElementById('peopleConsentNotes').value = d.people.consent.notes || '';
+                }
+            }
+            
+            document.getElementById('peopleReached').value = d.impact?.peopleReached || '';
+            document.getElementById('households').value = d.impact?.households || '';
+            document.getElementById('storiesCaptured').value = d.impact?.storiesCaptured || '';
+            document.getElementById('impactNotes').value = d.impact?.notes || '';
+            document.getElementById('healthNotes').value = d.health?.notes || '';
+            document.getElementById('reflection').value = d.reflection || '';
+            document.getElementById('mediaNotes').value = d.mediaNotes || '';
+            
+            // Handle real talk angle
+            const presetAngles = ['harder','bureaucracy','emotional','unexpected','supplies','overwhelmed','hopeful','grateful','lesson','ask'];
+            if (d.realTalkAngle && !presetAngles.includes(d.realTalkAngle)) {
+                document.getElementById('realTalkAngle').value = 'custom';
+                document.getElementById('customAngle').value = d.realTalkAngle;
+                document.getElementById('customAngleContainer').classList.add('show');
+            } else {
+                document.getElementById('realTalkAngle').value = d.realTalkAngle || '';
+            }
+            
+            (d.impact?.activities || []).forEach(a => {
+                const el = document.getElementById(`act${a}`);
+                if (el) el.checked = true;
+            });
+            
+            (d.health?.risks || []).forEach(r => {
+                const el = document.getElementById(`risk${r}`);
+                if (el) el.checked = true;
+            });
+            
+            (d.stories || []).forEach(s => {
+                addStory();
+                const entry = document.querySelector('.story-entry:last-child');
+                entry.querySelector('.story-name').value = s.name || '';
+                entry.querySelector('.story-role').value = s.role || '';
+                entry.querySelector('.story-their-words').value = s.theirWords || '';
+                entry.querySelector('.story-quote').value = s.quote || '';
+                entry.querySelector('.story-outcome').value = s.outcome || '';
+                if (s.consent?.includes('Full')) entry.querySelector('.consent-full').checked = true;
+                if (s.consent?.includes('Partial')) entry.querySelector('.consent-partial').checked = true;
+                if (s.consent?.includes('Internal')) entry.querySelector('.consent-internal').checked = true;
+            });
+            
+            updateHeaderDeployment();
+        }
+    }
+    
+    function updateHeaderDeployment() {
+        const deployment = document.getElementById('deploymentLocation').value;
+        const settings = getSettings();
+        document.getElementById('headerDeployment').textContent = 
+            deployment || settings.defaultDeployment || 'Configure Deployment';
+    }
+    
+    function clearAll() {
+        if (confirm('Clear all data including photos/videos?')) {
+            localStorage.removeItem('deployNotesDraft');
+            if (db) {
+                const tx = db.transaction('media', 'readwrite');
+                tx.objectStore('media').clear();
+            }
+            location.reload();
+        }
+    }
+    
+    // ===== CONNECTION STATUS =====
+    function checkConnection() {
+        const dot = document.getElementById('connectionDot');
+        const text = document.getElementById('connectionText');
+        const uploadBtn = document.getElementById('uploadBtn');
+        
+        if (navigator.onLine) {
+            dot.classList.remove('offline');
+            dot.classList.add('online');
+            text.textContent = 'Online';
+            uploadBtn.disabled = false;
+        } else {
+            dot.classList.remove('online');
+            dot.classList.add('offline');
+            text.textContent = 'Offline';
+            uploadBtn.disabled = true;
+        }
+    }
+    
+    // ===== FILENAME UPDATE =====
+    function updateFilename() {
+        const date = document.getElementById('reportDate').value?.replace(/-/g, '') || '';
+        const day = document.getElementById('dayNumber').value;
+        const name = document.getElementById('yourName').value?.replace(/\s+/g, '') || 'Report';
+        const parish = document.getElementById('parish').value?.replace(/[^a-zA-Z]/g, '') || 'Location';
+        document.getElementById('filename').value = `Day${day}_${parish}_${date}_${name}`;
+    }
+    
+    // ===== INIT =====
+    async function initApp() {
+        document.getElementById('reportDate').valueAsDate = new Date();
+        
+        await initIndexedDB();
+        mediaFiles = await loadMediaFromDB();
+        renderMediaGrid();
+        
+        // Load settings and apply defaults
+        const settings = getSettings();
+        if (settings.defaultDeployment) {
+            document.getElementById('deploymentLocation').value = settings.defaultDeployment;
+            document.getElementById('headerDeployment').textContent = settings.defaultDeployment;
+        }
+        
+        loadDraft();
+        checkConnection();
+        updatePendingCount();
+        
+        // Auto-save
+        document.querySelectorAll('input, select, textarea').forEach(el => {
+            el.addEventListener('input', debounce(saveDraft, 500));
+            el.addEventListener('change', saveDraft);
+        });
+        
+        // Update header when deployment changes
+        document.getElementById('deploymentLocation').addEventListener('change', updateHeaderDeployment);
+        
+        // Filename auto-update
+        ['reportDate', 'dayNumber', 'yourName', 'parish'].forEach(id => {
+            document.getElementById(id).addEventListener('change', updateFilename);
+        });
+    }
+    
+    function debounce(fn, ms) {
+        let t;
+        return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+    }
+    
+    // Connection listeners
+    window.addEventListener('online', checkConnection);
+    window.addEventListener('offline', checkConnection);
+    
+    // Start
+    document.addEventListener('DOMContentLoaded', initPinSystem);
+    </script>
+</body>
+</html>
