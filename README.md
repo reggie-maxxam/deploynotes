@@ -1,122 +1,308 @@
-# 📋 DeployNotes
+# DeployNotes PWA
 
-**Secure, offline-capable field reporting for humanitarian deployments**
+**Version:** 3.1  
+**Live URL:** [https://reggie-maxxam.github.io/deploynotes/](https://reggie-maxxam.github.io/deploynotes/)  
+**Repository:** [https://github.com/reggie-maxxam/deploynotes](https://github.com/reggie-maxxam/deploynotes)
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
-![PWA](https://img.shields.io/badge/PWA-ready-brightgreen)
-
----
-
-## What is DeployNotes?
-
-DeployNotes is a Progressive Web App (PWA) designed for humanitarian field workers, disaster relief teams, and anyone who needs to capture detailed daily reports in environments with limited connectivity.
-
-### ✨ Key Features
-
-- 🔐 **PIN Protected** - Secure access to sensitive field data
-- 📴 **100% Offline** - Works without internet, syncs when available
-- 📸 **Photo & Video Capture** - Document with media directly in the app
-- ☁️ **HIPAA-Ready Upload** - Configure your own compliant cloud storage
-- 📍 **Flexible Location Tracking** - Deployment, Parish, Community, Facility
-- 📖 **Story Capture** - Document human stories with consent tracking
-- 🏥 **Health Risk Logging** - Quick checkboxes for field observations
-- 📱 **Mobile-First Design** - Optimized for phones in the field
+A Progressive Web App (PWA) for field deployment reporting, designed for humanitarian relief workers, disaster response teams, and field researchers. Capture stories, photos, consent documentation, and impact data — all offline-capable with cloud sync.
 
 ---
 
-## 🚀 Quick Start
+## Features
 
-### Use Hosted Version
-Visit: **[https://reggie-maxxam.github.io/deploynotes](https://reggie-maxxam.github.io/deploynotes)**
-
-### Install on Your Phone
-
-**iPhone (Safari):**
-1. Open the link in Safari
-2. Tap the Share button (□↑)
-3. Tap "Add to Home Screen"
-
-**Android (Chrome):**
-1. Open the link in Chrome
-2. Tap the menu (⋮)
-3. Tap "Add to Home Screen"
+| Feature | Description |
+|---------|-------------|
+| 📱 **PWA / Offline-First** | Install on any device, works without internet |
+| 🔐 **PIN Lock** | 4-digit PIN protection for sensitive field data |
+| 📸 **Photo Capture** | Camera integration + gallery upload for field photos |
+| ✍️ **Digital Signatures** | Canvas-based signature capture for consent forms |
+| 📖 **Story Collection** | Structured story capture with consent levels |
+| ☁️ **Cloud Upload** | Sync to Google Drive via n8n webhook |
+| 📄 **HTML Export** | Self-contained report with embedded images |
+| 💾 **JSON Backup** | Full data backup for recovery |
+| 🔄 **Auto-Save** | Continuous draft saving to localStorage |
 
 ---
 
-## 📁 Files Included
+## Report Sections
+
+1. 📍 **Location** — Date, day number, deployment name, parish, community, facility
+2. 🚗 **Journey** — Theme selection, journey narrative
+3. 👥 **People** — People met, consent checkboxes (Full/Partial/Internal)
+4. 💪 **Impact** — Stats (people served, households, stories), activities, impact description
+5. 📸 **Photos & Videos** — Camera capture, media grid, notes
+6. ✍️ **Consent Form** — Photo upload, consent banner, signature pad, name/date
+7. 📖 **Stories** — Add/remove story entries with name, role, text, quote
+8. 🏥 **Health Risks** — Risk checkboxes + notes
+9. 💭 **Reflection** — Angle selection, reflection narrative
+
+---
+
+## Technical Architecture
+
+### Stack
+- **Frontend:** Vanilla HTML5, CSS3, JavaScript (ES6+)
+- **Storage:** localStorage (auto-save drafts, settings, PIN)
+- **Media:** Base64 encoding for photos/signatures
+- **PWA:** Service Worker ready (add manifest.json for full PWA)
+- **Cloud Sync:** n8n webhook integration
+
+### File Structure
+```
+deploynotes/
+├── index.html          # Main application (single-file PWA)
+├── README.md           # This file
+├── CHANGELOG.md        # Version history
+└── n8n/
+    └── DeployNotes_CloudUpload_v3.json  # n8n workflow for cloud sync
+```
+
+### Data Storage (localStorage)
+
+| Key | Purpose |
+|-----|---------|
+| `dn_pin` | 4-digit PIN (plain text) |
+| `dn_draft` | Auto-saved form data (JSON with photos, stories, signature) |
+| `dn_settings` | Settings (deployment name, org, cloud URL, API key) |
+
+### Cloud Upload Payload Structure
+```javascript
+{
+  report: {
+    date: "2026-03-14",
+    day: "1",
+    name: "Reporter Name",
+    deploy: "Deployment Name",
+    parish: "Parish",
+    comm: "Community",
+    facility: "Facility",
+    theme: "The Journey Begins",
+    journey: "Journey narrative...",
+    people: "People description...",
+    consentFull: true,
+    consentPartial: false,
+    consentInternal: false,
+    consentNotes: "Notes...",
+    peopleNum: 25,
+    households: 10,
+    storiesNum: 3,
+    activities: ["Assess", "Distribute"],
+    impact: "Impact description...",
+    healthRisks: ["Water", "Sanitation"],
+    health: "Health notes...",
+    angle: "Harder than imagined",
+    reflection: "Reflection text...",
+    sigName: "Signature Name",
+    sigDate: "2026-03-14"
+  },
+  media: [
+    { type: "photo", data: "data:image/jpeg;base64,..." }
+  ],
+  consentMedia: [
+    { type: "consent", data: "data:image/jpeg;base64,..." }
+  ],
+  signature: "data:image/png;base64,...",
+  stories: [
+    { name: "Person", role: "Role", consent: "Full", text: "...", quote: "..." }
+  ],
+  orgId: "Organization Name",
+  uploadedAt: "2026-03-14T17:30:00.000Z"
+}
+```
+
+---
+
+## Installation
+
+### Option 1: Use Live Version
+Visit [https://reggie-maxxam.github.io/deploynotes/](https://reggie-maxxam.github.io/deploynotes/)
+
+### Option 2: Self-Host
+```bash
+git clone https://github.com/reggie-maxxam/deploynotes.git
+```
+Serve `index.html` via any web server (GitHub Pages, Netlify, nginx, etc.)
+
+### Option 3: Local Development
+```bash
+git clone https://github.com/reggie-maxxam/deploynotes.git
+cd deploynotes
+npx serve .
+# or: python -m http.server 8000
+```
+
+---
+
+## Cloud Upload Setup (n8n + Google Drive)
+
+DeployNotes can sync reports to Google Drive via an n8n webhook workflow.
+
+### Prerequisites
+- n8n instance (self-hosted or cloud)
+- Google Drive OAuth2 credentials configured in n8n
+
+### Setup Steps
+
+1. **Import the n8n workflow**
+   - File: `n8n/DeployNotes_CloudUpload_v3.json`
+   - In n8n: Settings → Import Workflow → Upload JSON
+
+2. **Connect Google Drive credentials** to these nodes:
+   - Create Drive Folder
+   - Upload JSON
+   - Upload HTML Report
+   - Upload Photo
+
+3. **Activate the workflow** and copy the **Production** webhook URL
+
+4. **Configure DeployNotes**
+   - Tap ⚙️ **Settings**
+   - Paste webhook URL into **Cloud Storage URL**
+   - Save
+
+5. **Test** — Fill out a report and tap **☁️ Upload to Cloud**
+
+### What Gets Uploaded
 
 | File | Description |
 |------|-------------|
-| `index.html` | The DeployNotes app (main file) |
-| `DeployNotes_User_Guide.md` | Complete user documentation |
-| `DeployNotes_QuickStart.md` | Printable one-page reference |
-| `DeployNotes_Technical_Overview.md` | Security & data handling details |
+| `{folder}_backup.json` | Full JSON backup of all data |
+| `{folder}_report.html` | Formatted HTML report with embedded images |
+| `photo_1.jpg`, etc. | Field photos |
+| `consent_1.jpg`, etc. | Consent form photos |
+| `signature.png` | Digital signature |
+
+### Folder Naming Convention
+```
+{date}_Day{day}_{deployment}_{reporter}
+```
+Example: `2026-03-14_Day1_Jamaica_Relief_Reginald_Johnson`
+
+### n8n Workflow Architecture
+```
+Webhook
+    ↓
+Extract & Prepare Data
+    ↓
+Create Drive Folder
+    ↓
+Store Folder ID
+    ↓
+    ├── Create JSON Backup → Upload JSON
+    │
+    └── Create HTML Report → Upload HTML Report
+                                    ↓
+                              Check Photos?
+                               ↓        ↓
+                              Yes       No
+                               ↓         ↓
+                          Split Photos   Success Response
+                               ↓
+                      Prepare Photo Binary
+                               ↓
+                          Upload Photo
+                               ↓
+                       Aggregate Results
+                               ↓
+                       Success Response
+```
 
 ---
 
-## 🔒 Security Overview
+## Usage Guide
 
-| Feature | Implementation |
-|---------|----------------|
-| Access Control | 4-digit PIN (hashed, never stored plain) |
-| Data Storage | localStorage + IndexedDB (sandboxed) |
-| Cloud Transfer | HTTPS with Bearer token auth |
-| Offline Mode | Full functionality without internet |
+### First Time Setup
+1. Open the app
+2. Set a 4-digit PIN
+3. Configure settings (deployment name, organization, cloud URL)
 
-**Note:** For HIPAA compliance, pair with a compliant cloud endpoint (AWS S3, Azure Blob, or Sync.com with BAA).
+### Creating a Report
+1. Unlock with PIN
+2. Fill sections: Location → Journey → People → Impact → Photos → Consent → Stories → Health → Reflection
+3. Add photos and signatures as needed
+4. Upload or export when ready
 
-[See full security documentation →](DeployNotes_Technical_Overview.md)
+### Saving Options
+| Action | Result |
+|--------|--------|
+| **Auto-save** | Data saves continuously to device |
+| **Export Report** | Downloads HTML file |
+| **Backup JSON** | Downloads JSON backup |
+| **Upload to Cloud** | Syncs to Google Drive |
 
----
-
-## 📱 Screenshots
-
-*App screenshots coming soon*
-
----
-
-## 🛠️ Self-Hosting
-
-### GitHub Pages (Free)
-1. Fork this repository
-2. Go to Settings → Pages
-3. Select "Deploy from branch" → main
-4. Your app is live at `https://reggie-maxxam.github.io/deploynotes`
-
-### Other Hosting
-Simply upload `index.html` to any web server. No build process required.
+### Viewing HTML Reports
+1. Download `.html` file from Google Drive
+2. Open in any web browser
+3. Print to PDF if needed (Ctrl/Cmd + P → Save as PDF)
 
 ---
 
-## 📖 Documentation
+## Security & Privacy
 
-- [User Guide](DeployNotes_User_Guide.md) - Complete instructions
-- [Quick Start](DeployNotes_QuickStart.md) - One-page reference
-- [Technical Overview](DeployNotes_Technical_Overview.md) - Security & architecture
+### Data Storage
+- All data stored locally in browser localStorage
+- No data sent externally except configured cloud sync
+- PIN protection for access control
 
----
+### HIPAA Considerations
+For HIPAA-compliant deployments:
+- Use Google Workspace with signed BAA
+- Host n8n on HIPAA-compliant infrastructure
+- Enable SSL/TLS encryption
+- Configure access logging
 
-## 🤝 Contributing
-
-Contributions welcome! Please read our contributing guidelines before submitting PRs.
-
----
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) file for details.
-
----
-
-## 🙏 Acknowledgments
-
-Built for humanitarian field teams worldwide.
-
-Developed by **MAXXAM AI** - AI-Driven Automation Solutions
+### Clearing Data
+| Action | Effect |
+|--------|--------|
+| **Clear Media** | Removes photos only |
+| **Clear All** | Removes all report data (keeps settings/PIN) |
+| **Browser Clear** | Complete reset |
 
 ---
 
-## 📞 Support
+## Troubleshooting
 
-For questions or support, contact your deployment coordinator or open an issue in this repository.
+| Issue | Solution |
+|-------|----------|
+| Photos not uploading | Check n8n workflow uses `body.media[]` path |
+| Cloud upload fails | Verify webhook URL is Production (not Test), workflow is Active |
+| PIN forgotten | Clear browser site data, set new PIN (clears all data) |
+| Export shows blank | Ensure at least one section is filled |
+
+---
+
+## Changelog
+
+### v3.1 (2026-03-14)
+- ☁️ Cloud upload to Google Drive via n8n
+- 🔧 Fixed photo detection in workflow
+- 📝 Corrected data field mappings
+
+### v3.0 (2026-03-08)
+- ✍️ Digital signature capture
+- 📖 Story collection with consent
+- 🏥 Health risks section
+- 📄 HTML export with embedded images
+
+### v2.0 (2026-03-07)
+- 📸 Photo/video capture
+- 📋 Consent form section
+- 🔐 PIN lock
+
+### v1.0 (2026-03-06)
+- 🚀 Initial release
+
+---
+
+## License
+
+MIT License
+
+---
+
+## Credits
+
+**Developed by:** MAXXAM AI  
+**Website:** [maxxam.ai](https://maxxam.ai)
+
+Built for humanitarian field workers who need reliable, offline-capable tools for capturing stories and impact data in challenging environments.
