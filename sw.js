@@ -3,8 +3,7 @@ var CACHE_URLS = [
     '/deploynotes/',
     '/deploynotes/index.html',
     '/deploynotes/manifest.json',
-    '/deploynotes/icon-192.png',
-    '/deploynotes/icon-512.png'
+    '/deploynotes/icon.png'
 ];
 
 self.addEventListener('install', function(event) {
