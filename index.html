@@ -277,7 +277,11 @@
             <div class="btn-grid">
                 <button class="btn btn-primary" onclick="exportHTML()">📄 Export Report</button>
                 <button class="btn btn-secondary" onclick="exportJSON()">💾 Backup JSON</button>
-                <button class="btn btn-primary btn-full" id="uploadBtn" onclick="uploadToCloud()">☁️ Upload to Cloud</button>
+                <button class="btn btn-primary btn-full" id="uploadBtn" onclick="uploadToCloud()">☁️ Sync to Google Drive</button>
+                <button class="btn btn-outline btn-full" onclick="showCommercialCTA('AWS S3')">🔒 AWS S3 Integration</button>
+                <button class="btn btn-outline btn-full" onclick="showCommercialCTA('Google BAA Workspace')">🔒 Google BAA Workspace</button>
+                <button class="btn btn-outline btn-full" onclick="showCommercialCTA('Box')">🔒 Box Integration</button>
+                <button class="btn btn-outline btn-full" onclick="showCommercialCTA('Azure Blob Storage')">🔒 Azure Blob Storage</button>
                 <button class="btn btn-light btn-full" onclick="showSettings()">⚙️ Settings</button>
                 <button class="btn btn-outline" onclick="clearMedia()">🗑️ Clear Media</button>
                 <button class="btn btn-dark" onclick="clearAll()">🗑️ Clear All</button>
@@ -296,14 +300,32 @@
             <label>Organization</label>
             <input type="text" id="setOrg" placeholder="e.g., BeVera Corps">
             <div class="notice" style="margin:15px 0;background:rgba(255,152,0,0.1);border-color:rgba(255,152,0,0.3);color:#ffb74d">
-                <strong>☁️ Cloud Upload:</strong> Configure your storage endpoint below. Supports any HIPAA-compliant service (AWS S3, Azure Blob, Google Cloud with BAA, Box, Sync.com).
+                <strong>☁️ Google Drive Sync:</strong> Enter your n8n webhook URL and bearer token to enable cloud sync.
             </div>
-            <label>Cloud Storage URL</label>
-            <input type="url" id="setCloudUrl" placeholder="https://your-storage.com/upload">
-            <label>API Key / Token</label>
-            <input type="password" id="setCloudKey" placeholder="Your API key or access token">
+            <label>Webhook URL</label>
+            <input type="url" id="setCloudUrl" placeholder="https://your-n8n-instance.com/webhook/...">
+            <label>Bearer Token</label>
+            <input type="password" id="setCloudKey" placeholder="Your bearer token">
             <button class="btn btn-primary btn-full" onclick="saveSettings()">Save Settings</button>
             <button class="btn btn-outline btn-full" style="margin-top:10px" onclick="resetPIN()">Reset PIN</button>
+        </div>
+    </div>
+
+    <!-- Commercial Integration Modal -->
+    <div class="modal" id="commercialModal">
+        <div class="modal-box" style="text-align:center">
+            <button class="modal-close" onclick="closeCommercialCTA()">×</button>
+            <div style="font-size:2rem;margin-bottom:12px">🔒</div>
+            <h3 id="commercialModalTitle" style="margin-bottom:8px">Commercial Integration</h3>
+            <p style="color:#90caf9;margin-bottom:16px;font-size:0.95rem" id="commercialModalBody"></p>
+            <div class="notice" style="margin-bottom:20px;font-size:0.85rem">
+                This integration is available under a commercial license.<br>
+                MAXXAM AI configures and supports your deployment.
+            </div>
+            <a id="commercialMailtoBtn" href="mailto:reggie@maxxam.ai" class="btn btn-primary btn-full" style="display:block;text-align:center;text-decoration:none;padding:12px">
+                Unlock This Integration — Contact MAXXAM AI
+            </a>
+            <button class="btn btn-outline btn-full" style="margin-top:10px" onclick="closeCommercialCTA()">Maybe Later</button>
         </div>
     </div>
 
@@ -713,6 +735,24 @@ function updateFilename() {
 // SETTINGS
 function showSettings() { document.getElementById('settingsModal').classList.add('show'); }
 function closeSettings() { document.getElementById('settingsModal').classList.remove('show'); }
+function showCommercialCTA(service) {
+    var subjects = {
+        'AWS S3': 'AWS S3',
+        'Google BAA Workspace': 'Google BAA Workspace',
+        'Box': 'Box',
+        'Azure Blob Storage': 'Azure Blob Storage'
+    };
+    document.getElementById('commercialModalTitle').textContent = subjects[service] + ' Integration';
+    document.getElementById('commercialModalBody').textContent =
+        'The ' + service + ' integration requires a commercial license. ' +
+        'MAXXAM AI will configure your secure endpoint, set up the data pipeline, and provide ongoing support.';
+    document.getElementById('commercialMailtoBtn').href =
+        'mailto:reggie@maxxam.ai?subject=DeployNotes%20Commercial%20Integration%20%E2%80%94%20' +
+        encodeURIComponent(service) + '&body=Hi%20Reggie%2C%0A%0AI%27m%20interested%20in%20unlocking%20the%20' +
+        encodeURIComponent(service) + '%20integration%20for%20DeployNotes.%0A%0AOrganization%3A%20%0AUse%20case%3A%20';
+    document.getElementById('commercialModal').classList.add('show');
+}
+function closeCommercialCTA() { document.getElementById('commercialModal').classList.remove('show'); }
 function saveSettings() {
     localStorage.setItem('dn_settings', JSON.stringify({
         deploy: document.getElementById('setDeploy').value,
