@@ -6,6 +6,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#0a1628">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
     <title>DeployNotes</title>
     <style>
         *{box-sizing:border-box;margin:0;padding:0}
@@ -24,6 +26,7 @@
         .pin-btn{width:80px;height:80px;border-radius:50%;border:2px solid #1e3a5f;background:rgba(100,181,246,0.05);color:#fff;font-size:1.8rem;cursor:pointer}
         .pin-btn:active{background:#64b5f6;color:#0a1628}
         .pin-btn.action{font-size:1rem;border-color:#64b5f6}
+        .pin-locked{opacity:0.4;pointer-events:none}
         .pin-error{color:#ef5350;margin-top:20px;height:20px}
         
         .app{padding:15px;padding-bottom:100px;display:none}
@@ -315,6 +318,54 @@ var sigData = null;
 var ctx = null;
 var drawing = false;
 
+// SECURITY CONFIG
+var pinAttempts = 0;
+var PIN_MAX_ATTEMPTS = 5;
+var PIN_LOCKOUT_SECONDS = 30;
+var inactivityTimer = null;
+var INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
+// SECURITY HELPERS
+async function hashPin(pin) {
+    var encoded = new TextEncoder().encode(pin);
+    var buffer = await crypto.subtle.digest('SHA-256', encoded);
+    return Array.from(new Uint8Array(buffer))
+        .map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+}
+
+function lockoutPin() {
+    var btns = document.querySelectorAll('.pin-btn');
+    btns.forEach(function(b) { b.classList.add('pin-locked'); });
+    var remaining = PIN_LOCKOUT_SECONDS;
+    document.getElementById('pinError').textContent = 'Too many attempts. Try again in ' + remaining + 's';
+    var timer = setInterval(function() {
+        remaining--;
+        if (remaining <= 0) {
+            clearInterval(timer);
+            btns.forEach(function(b) { b.classList.remove('pin-locked'); });
+            document.getElementById('pinError').textContent = '';
+            pinAttempts = 0;
+        } else {
+            document.getElementById('pinError').textContent = 'Too many attempts. Try again in ' + remaining + 's';
+        }
+    }, 1000);
+}
+
+function resetInactivityTimer() {
+    clearTimeout(inactivityTimer);
+    inactivityTimer = setTimeout(function() { lockApp(); }, INACTIVITY_TIMEOUT_MS);
+}
+
+function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // PIN FUNCTIONS
 function addPin(n) {
     if (pin.length >= 4) return;
@@ -330,7 +381,7 @@ function updateDots() {
         dots[i].className = 'pin-dot' + (i < pin.length ? ' filled' : '');
     }
 }
-function checkPin() {
+async function checkPin() {
     var stored = localStorage.getItem('dn_pin');
     if (!stored) {
         if (!confirmPin) {
@@ -339,17 +390,33 @@ function checkPin() {
             updateDots();
             document.getElementById('lockSubtitle').textContent = 'Confirm PIN';
         } else if (pin === confirmPin) {
-            localStorage.setItem('dn_pin', pin);
+            localStorage.setItem('dn_pin', await hashPin(pin));
             openApp();
         } else {
             showErr('PINs do not match');
             confirmPin = '';
         }
     } else {
-        if (pin === stored) {
+        var match;
+        if (stored.length === 4) {
+            // Migration: plain-text PIN from old version
+            match = (pin === stored);
+            if (match) {
+                localStorage.setItem('dn_pin', await hashPin(pin));
+            }
+        } else {
+            match = ((await hashPin(pin)) === stored);
+        }
+        if (match) {
+            pinAttempts = 0;
             openApp();
         } else {
-            showErr('Wrong PIN');
+            pinAttempts++;
+            if (pinAttempts >= PIN_MAX_ATTEMPTS) {
+                lockoutPin();
+            } else {
+                showErr('Wrong PIN');
+            }
         }
     }
 }
@@ -367,8 +434,17 @@ function openApp() {
     document.getElementById('lockScreen').classList.add('hidden');
     document.getElementById('app').classList.add('visible');
     initApp();
+    ['touchstart', 'mousemove', 'keydown', 'click'].forEach(function(e) {
+        document.removeEventListener(e, resetInactivityTimer);
+        document.addEventListener(e, resetInactivityTimer);
+    });
+    resetInactivityTimer();
 }
 function lockApp() {
+    clearTimeout(inactivityTimer);
+    ['touchstart', 'mousemove', 'keydown', 'click'].forEach(function(e) {
+        document.removeEventListener(e, resetInactivityTimer);
+    });
     pin = '';
     updateDots();
     document.getElementById('lockScreen').classList.remove('hidden');
@@ -426,8 +502,24 @@ function initSig() {
     canvas.onmousemove = function(e) { if (drawing) { ctx.lineTo(e.offsetX, e.offsetY); ctx.stroke(); } };
     canvas.onmouseup = canvas.onmouseout = function() { if (drawing) { drawing = false; sigData = canvas.toDataURL(); } };
     
+    var rafPending = false;
+    var lastTouchX = 0, lastTouchY = 0;
     canvas.ontouchstart = function(e) { e.preventDefault(); drawing = true; var t = e.touches[0], r = canvas.getBoundingClientRect(); ctx.beginPath(); ctx.moveTo(t.clientX-r.left, t.clientY-r.top); };
-    canvas.ontouchmove = function(e) { if (!drawing) return; e.preventDefault(); var t = e.touches[0], r = canvas.getBoundingClientRect(); ctx.lineTo(t.clientX-r.left, t.clientY-r.top); ctx.stroke(); };
+    canvas.ontouchmove = function(e) {
+        if (!drawing) return;
+        e.preventDefault();
+        var t = e.touches[0], r = canvas.getBoundingClientRect();
+        lastTouchX = t.clientX - r.left;
+        lastTouchY = t.clientY - r.top;
+        if (!rafPending) {
+            rafPending = true;
+            requestAnimationFrame(function() {
+                ctx.lineTo(lastTouchX, lastTouchY);
+                ctx.stroke();
+                rafPending = false;
+            });
+        }
+    };
     canvas.ontouchend = function() { if (drawing) { drawing = false; sigData = canvas.toDataURL(); } };
 }
 
@@ -443,7 +535,7 @@ function addPhotos(files) {
         (function(file) {
             var reader = new FileReader();
             reader.onload = function(e) {
-                photos.push({ type: file.type.indexOf('video') >= 0 ? 'video' : 'photo', data: e.target.result });
+                photos.push({ type: file.type.indexOf('video') >= 0 ? 'video' : 'photo', data: e.target.result, timestamp: new Date().toISOString() });
                 renderPhotos();
                 saveDraft();
             };
@@ -472,7 +564,7 @@ function addConsent(file) {
     if (!file) return;
     var reader = new FileReader();
     reader.onload = function(e) {
-        consentPhotos.push({ data: e.target.result });
+        consentPhotos.push({ data: e.target.result, timestamp: new Date().toISOString() });
         renderConsent();
         saveDraft();
     };
@@ -736,7 +828,7 @@ function exportHTML() {
         
         html.push('<!DOCTYPE html>');
         html.push('<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">');
-        html.push('<title>Report Day ' + d.day + '</title>');
+        html.push('<title>Report Day ' + escapeHtml(d.day) + '</title>');
         html.push('<style>*{box-sizing:border-box}body{font-family:sans-serif;max-width:800px;margin:0 auto;padding:20px;color:#333}.header{background:linear-gradient(135deg,#0d2137,#1e3a5f);color:#fff;padding:25px;border-radius:12px;margin-bottom:25px;text-align:center}.header img{width:60px;height:60px;border-radius:12px;margin-bottom:10px}.header h1{margin:0 0 5px}.header .deploy{color:#64b5f6;font-size:1.1rem}.header .meta{margin-top:15px;color:#90caf9;font-size:0.9rem}.section{margin-bottom:25px;padding-bottom:20px;border-bottom:1px solid #ddd}.section h2{color:#1e3a5f;margin-bottom:12px}.stats{display:flex;gap:15px;flex-wrap:wrap;margin:15px 0}.stat{background:#f5f8ff;padding:15px 25px;border-radius:10px;text-align:center}.stat .num{font-size:1.8rem;font-weight:bold;color:#1e88e5}.stat .lbl{font-size:0.75rem;color:#666}.tags{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}.tag{background:#e3f2fd;color:#1565c0;padding:4px 10px;border-radius:12px;font-size:0.8rem}.tag.risk{background:#fff3e0;color:#e65100}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-top:12px}.item{border:1px solid #ddd;border-radius:8px;overflow:hidden}.item img,.item video{width:100%;max-height:180px;object-fit:cover}.story{background:#f8f9fa;border-radius:10px;padding:15px;margin-bottom:12px;border-left:4px solid #1976d2}.story h3{margin:0 0 5px}.story blockquote{border-left:3px solid #64b5f6;padding-left:12px;margin:12px 0;font-style:italic}.footer{background:#f5f5f5;padding:15px;border-radius:10px;text-align:center;font-size:0.75rem;color:#666;margin-top:25px}.footer img{width:40px;height:40px;border-radius:8px;margin-bottom:8px}</style>');
         html.push('</head><body>');
         
@@ -744,23 +836,23 @@ function exportHTML() {
         html.push('<div class="header">');
         html.push('<img src="' + LOGO_DATA + '" alt="DeployNotes">');
         html.push('<h1>Field Report</h1>');
-        html.push('<div class="deploy">' + (d.deploy || 'Deployment') + '</div>');
-        html.push('<div class="meta">📅 ' + (d.date || '') + ' • Day ' + (d.day || '?') + ' • 👤 ' + (d.name || '') + ' • 🏢 ' + (s.org || '') + '</div></div>');
+        html.push('<div class="deploy">' + escapeHtml(d.deploy || 'Deployment') + '</div>');
+        html.push('<div class="meta">📅 ' + escapeHtml(d.date || '') + ' • Day ' + escapeHtml(d.day || '?') + ' • 👤 ' + escapeHtml(d.name || '') + ' • 🏢 ' + escapeHtml(s.org || '') + '</div></div>');
         
         // Location
         html.push('<div class="section"><h2>📍 Location</h2>');
-        html.push('<p><strong>Parish:</strong> ' + (d.parish || '-') + ' | <strong>Community:</strong> ' + (d.comm || '-') + ' | <strong>Facility:</strong> ' + (d.facility || '-') + '</p></div>');
+        html.push('<p><strong>Parish:</strong> ' + escapeHtml(d.parish || '-') + ' | <strong>Community:</strong> ' + escapeHtml(d.comm || '-') + ' | <strong>Facility:</strong> ' + escapeHtml(d.facility || '-') + '</p></div>');
         
         // Journey
         html.push('<div class="section"><h2>🚗 Journey</h2>');
-        html.push('<p><strong>Theme:</strong> ' + (d.theme || '-') + '</p>');
-        html.push('<p>' + (d.journey || '-') + '</p></div>');
+        html.push('<p><strong>Theme:</strong> ' + escapeHtml(d.theme || '-') + '</p>');
+        html.push('<p>' + escapeHtml(d.journey || '-') + '</p></div>');
         
         // People
         html.push('<div class="section"><h2>👥 People</h2>');
-        html.push('<p>' + (d.people || '-') + '</p>');
+        html.push('<p>' + escapeHtml(d.people || '-') + '</p>');
         html.push('<p>' + (d.consentFull?'✅ Full ':'') + (d.consentPartial?'⚠️ Partial ':'') + (d.consentInternal?'🔒 Internal':'') + '</p>');
-        if (d.consentNotes) html.push('<p>' + d.consentNotes + '</p>');
+        if (d.consentNotes) html.push('<p>' + escapeHtml(d.consentNotes) + '</p>');
         html.push('</div>');
         
         // Impact
@@ -772,15 +864,15 @@ function exportHTML() {
         html.push('</div>');
         if (d.activities.length > 0) {
             html.push('<div class="tags">');
-            for (var i = 0; i < d.activities.length; i++) html.push('<span class="tag">' + d.activities[i] + '</span>');
+            for (var i = 0; i < d.activities.length; i++) html.push('<span class="tag">' + escapeHtml(d.activities[i]) + '</span>');
             html.push('</div>');
         }
-        html.push('<p>' + (d.impact || '') + '</p></div>');
+        html.push('<p>' + escapeHtml(d.impact || '') + '</p></div>');
         
         // Photos
         if (photos.length > 0) {
             html.push('<div class="section"><h2>📸 Photos & Videos</h2>');
-            html.push('<p>' + (d.mediaNotes || '') + '</p>');
+            html.push('<p>' + escapeHtml(d.mediaNotes || '') + '</p>');
             html.push('<div class="grid">');
             for (var i = 0; i < photos.length; i++) {
                 var p = photos[i];
@@ -805,9 +897,9 @@ function exportHTML() {
             for (var i = 0; i < stories.length; i++) {
                 var st = stories[i];
                 html.push('<div class="story">');
-                html.push('<h3>' + (st.name || 'Anonymous') + '</h3>');
-                html.push('<p>' + (st.text || '') + '</p>');
-                if (st.quote) html.push('<blockquote>"' + st.quote + '"</blockquote>');
+                html.push('<h3>' + escapeHtml(st.name || 'Anonymous') + '</h3>');
+                html.push('<p>' + escapeHtml(st.text || '') + '</p>');
+                if (st.quote) html.push('<blockquote>"' + escapeHtml(st.quote) + '"</blockquote>');
                 html.push('</div>');
             }
             html.push('</div>');
@@ -817,15 +909,15 @@ function exportHTML() {
         html.push('<div class="section"><h2>🏥 Health</h2>');
         if (d.healthRisks.length > 0) {
             html.push('<div class="tags">');
-            for (var i = 0; i < d.healthRisks.length; i++) html.push('<span class="tag risk">' + d.healthRisks[i] + '</span>');
+            for (var i = 0; i < d.healthRisks.length; i++) html.push('<span class="tag risk">' + escapeHtml(d.healthRisks[i]) + '</span>');
             html.push('</div>');
         }
-        html.push('<p>' + (d.health || '-') + '</p></div>');
+        html.push('<p>' + escapeHtml(d.health || '-') + '</p></div>');
         
         // Reflection
         html.push('<div class="section"><h2>💭 Reflection</h2>');
-        html.push('<p><strong>Angle:</strong> ' + (d.angle || '-') + '</p>');
-        html.push('<p>' + (d.reflection || '-') + '</p></div>');
+        html.push('<p><strong>Angle:</strong> ' + escapeHtml(d.angle || '-') + '</p>');
+        html.push('<p>' + escapeHtml(d.reflection || '-') + '</p></div>');
         
         // Consent
         if (consentPhotos.length > 0 || sigData) {
@@ -842,8 +934,8 @@ function exportHTML() {
                 html.push('<img src="');
                 html.push(sigData);
                 html.push('" style="max-width:300px;border:1px solid #ddd;border-radius:8px">');
-                html.push('<p><strong>Name:</strong> ' + (d.sigName || '') + '</p>');
-                html.push('<p><strong>Date:</strong> ' + (d.sigDate || '') + '</p></div>');
+                html.push('<p><strong>Name:</strong> ' + escapeHtml(d.sigName || '') + '</p>');
+                html.push('<p><strong>Date:</strong> ' + escapeHtml(d.sigDate || '') + '</p></div>');
             }
             html.push('</div>');
         }
@@ -903,6 +995,10 @@ window.onload = function() {
     if (stored) {
         document.getElementById('lockTitle').textContent = 'Enter PIN';
         document.getElementById('lockSubtitle').textContent = 'Enter your 4-digit PIN';
+    }
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/deploynotes/sw.js')
+            .catch(function(err) { console.warn('SW registration failed:', err); });
     }
 };
 </script>

@@ -1,0 +1,25 @@
+{
+  "name": "DeployNotes",
+  "short_name": "DeployNotes",
+  "description": "Offline field reporting for humanitarian and disaster response teams",
+  "start_url": "/deploynotes/",
+  "scope": "/deploynotes/",
+  "display": "standalone",
+  "background_color": "#0a1628",
+  "theme_color": "#0a1628",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
