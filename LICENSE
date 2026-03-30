@@ -1,21 +1,70 @@
-MIT License
+DeployNotes — Dual License
+Copyright (c) 2026 Reginald Johnson / MAXXAM AI
+All rights reserved.
 
-Copyright (c) 2026 MAXXAM AI
+================================================================================
+FREE USE LICENSE (Non-Commercial)
+================================================================================
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Permission is granted, free of charge, to any individual, nonprofit organization,
+humanitarian agency, research institution, or government entity to use, copy, and
+deploy this software for non-commercial purposes, subject to the following
+conditions:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1. The above copyright notice and this license must be included in all copies or
+   substantial portions of the software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+2. The software may not be sold, sublicensed, or distributed as part of a
+   commercial product or service without a Commercial License (see below).
+
+3. Modifications for personal or internal organizational use are permitted.
+   Redistribution of modified versions requires written permission from MAXXAM AI.
+
+4. Attribution must be preserved: "Powered by DeployNotes — maxxam.ai" must remain
+   visible in any public-facing deployment of this software.
+
+NON-COMMERCIAL USE INCLUDES:
+- Humanitarian field operations (NGOs, disaster response teams, relief organizations)
+- Academic and public health research
+- Government emergency management programs
+- Internal organizational use with no commercial intent
+
+================================================================================
+COMMERCIAL LICENSE (Required for Enterprise Integrations)
+================================================================================
+
+A Commercial License is required for any of the following:
+
+- Integration with enterprise cloud storage: AWS S3, Microsoft Azure Blob Storage,
+  Google Workspace with BAA, Box, or any HIPAA Business Associate Agreement (BAA)
+  covered storage service
+- Deployment as part of a paid product, SaaS platform, or client-billable service
+- Resale, white-labeling, or redistribution of this software under another brand
+- Use by for-profit entities with more than 10 employees
+
+Commercial licenses include:
+- Integration setup and configuration by MAXXAM AI
+- Ongoing technical support
+- Custom webhook and data pipeline implementation
+- HIPAA-readiness consultation
+
+To obtain a Commercial License:
+  Email:   reggie@maxxam.ai
+  Web:     https://www.maxxam.ai
+  Subject: DeployNotes Commercial License Inquiry
+
+================================================================================
+DISCLAIMER
+================================================================================
+
+THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF, OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+================================================================================
+DeployNotes is a product of MAXXAM AI
+https://www.maxxam.ai | reggie@maxxam.ai
+================================================================================
